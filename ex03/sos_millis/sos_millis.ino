@@ -6,55 +6,39 @@
 
 const int ledPin = 2;        // LED引脚（ESP32板载LED通常为GPIO2）
 unsigned long previousMillis = 0;
-int state = 0;               // 状态机当前步骤
-int stepIndex = 0;           // 当前在SOS序列中的位置
+int stepIndex = 0;           // 当前步骤索引
 unsigned long stepDuration = 0;
 
-// SOS 序列: 每个元素代表一个步骤的持续时间（ms），正数表示亮，负数表示灭
-// 序列: 短闪(亮200), 灭200, 短闪(亮200), 灭200, 短闪(亮200), 灭400(字母间隔),
-//       长闪(亮600), 灭200, 长闪(亮600), 灭200, 长闪(亮600), 灭400(字母间隔),
-//       短闪(亮200), 灭200, 短闪(亮200), 灭200, 短闪(亮200), 灭800(单词间隔)
+// SOS 序列: 正数=亮，负数=灭（绝对值是持续时间）
 const int sosSequence[] = {
-  200, -200,  200, -200,  200, -400,
-  600, -200,  600, -200,  600, -400,
-  200, -200,  200, -200,  200, -800
+  200, -200,  200, -200,  200, -400,   // S: 短-短-短
+  600, -200,  600, -200,  600, -400,   // O: 长-长-长
+  200, -200,  200, -200,  200, -800    // S: 短-短-短，最后长灭
 };
 const int seqLen = sizeof(sosSequence) / sizeof(sosSequence[0]);
 
 void setup() {
   pinMode(ledPin, OUTPUT);
-  Serial.begin(115200);
+  digitalWrite(ledPin, LOW);
   previousMillis = millis();
   stepIndex = 0;
-  digitalWrite(ledPin, LOW);
-  // 开始第一个步骤
+  // 开始执行第一个步骤
   stepDuration = abs(sosSequence[0]);
-  if (sosSequence[0] > 0) {
-    digitalWrite(ledPin, HIGH);
-    Serial.println("Step: ON");
-  } else {
-    digitalWrite(ledPin, LOW);
-    Serial.println("Step: OFF");
-  }
+  if (sosSequence[0] > 0) digitalWrite(ledPin, HIGH);
+  else digitalWrite(ledPin, LOW);
 }
 
 void loop() {
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= stepDuration) {
     previousMillis = currentMillis;
-    // 移动到下一步
+    // 移到下一步
     stepIndex++;
     if (stepIndex >= seqLen) {
-      stepIndex = 0;  // 循环播放SOS
+      stepIndex = 0;   // 无限循环
     }
-    // 更新步骤持续时间
     stepDuration = abs(sosSequence[stepIndex]);
-    if (sosSequence[stepIndex] > 0) {
-      digitalWrite(ledPin, HIGH);
-      Serial.println("ON");
-    } else {
-      digitalWrite(ledPin, LOW);
-      Serial.println("OFF");
-    }
+    if (sosSequence[stepIndex] > 0) digitalWrite(ledPin, HIGH);
+    else digitalWrite(ledPin, LOW);
   }
 }
