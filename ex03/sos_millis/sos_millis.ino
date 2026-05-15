@@ -1,41 +1,50 @@
-// SOS 信号：用 millis() 实现非阻塞时序
-// 短闪: 200ms 亮, 200ms 灭
-// 长闪: 600ms 亮, 200ms 灭
-// 字母间隔: 400ms 灭
-// 单词间隔（一轮SOS结束）: 800ms 灭
+// SOS 信号，播放 3 次后停止，LED 常灭
 
-const int ledPin = 2;        // LED引脚（ESP32板载LED通常为GPIO2）
+const int ledPin = 2;
 unsigned long previousMillis = 0;
-int stepIndex = 0;           // 当前步骤索引
+int stepIndex = 0;
 unsigned long stepDuration = 0;
+int playCount = 0;           // 已经完整播放的次数
+const int maxPlays = 3;      // 总共播放 3 次
 
-// SOS 序列: 正数=亮，负数=灭（绝对值是持续时间）
 const int sosSequence[] = {
-  200, -200,  200, -200,  200, -400,   // S: 短-短-短
-  600, -200,  600, -200,  600, -400,   // O: 长-长-长
-  200, -200,  200, -200,  200, -800    // S: 短-短-短，最后长灭
+  200, -200,  200, -200,  200, -400,
+  600, -200,  600, -200,  600, -400,
+  200, -200,  200, -200,  200, -800
 };
 const int seqLen = sizeof(sosSequence) / sizeof(sosSequence[0]);
+
+bool isPlaying = true;       // 是否还在播放
 
 void setup() {
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
   previousMillis = millis();
   stepIndex = 0;
-  // 开始执行第一个步骤
   stepDuration = abs(sosSequence[0]);
   if (sosSequence[0] > 0) digitalWrite(ledPin, HIGH);
   else digitalWrite(ledPin, LOW);
 }
 
 void loop() {
+  if (!isPlaying) {
+    // 已经播完，什么都不做，LED保持灭
+    return;
+  }
+
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= stepDuration) {
     previousMillis = currentMillis;
-    // 移到下一步
     stepIndex++;
     if (stepIndex >= seqLen) {
-      stepIndex = 0;   // 无限循环
+      // 完成一次完整 SOS
+      playCount++;
+      if (playCount >= maxPlays) {
+        isPlaying = false;
+        digitalWrite(ledPin, LOW);   // 最终熄灭
+        return;
+      }
+      stepIndex = 0;   // 重新开始下一轮
     }
     stepDuration = abs(sosSequence[stepIndex]);
     if (sosSequence[stepIndex] > 0) digitalWrite(ledPin, HIGH);
