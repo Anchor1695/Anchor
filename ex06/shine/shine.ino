@@ -1,76 +1,35 @@
-// ========== 双灯反相呼吸（警车双闪效果）==========
-#define TOUCH_PIN T0        // 触摸引脚 T0 (GPIO4)
-#define LED_A_PIN 5         // 灯 A PWM 引脚
-#define LED_B_PIN 18        // 灯 B PWM 引脚（请选择支持 PWM 的 GPIO）
-#define TOUCH_THRESHOLD 500  // 触摸阈值，需根据实际读数调整
+#include <math.h>
 
-int speedLevel = 1;
-bool lastTouchState = false;
-bool breathRestart = false;
+// ========== 引脚定义 ==========
+#define LED_A_PIN 5   // 灯 A PWM 引脚
+#define LED_B_PIN 18  // 灯 B PWM 引脚
 
-struct SpeedParam {
-  int stepDelay;
-  int stepSize;
-};
-
-SpeedParam getSpeedParam() {
-  switch (speedLevel) {
-    case 1: return {30, 1};   // 慢
-    case 2: return {15, 2};   // 中
-    case 3: return {5, 8};    // 快
-    default: return {20, 1};
-  }
-}
-
-// 触摸检测与档位切换
-void checkTouch() {
-  bool currentTouch = (touchRead(TOUCH_PIN) < TOUCH_THRESHOLD);
-  if (!lastTouchState && currentTouch) {
-    delay(5);
-    if (touchRead(TOUCH_PIN) < TOUCH_THRESHOLD) {
-      speedLevel++;
-      if (speedLevel > 3) speedLevel = 1;
-      breathRestart = true;
-    }
-  }
-  lastTouchState = currentTouch;
-}
+// ========== 呼吸参数 ==========
+float angle = 0.0;          // 正弦波角度
+float speed = 0.03;         // 呼吸速度，数值越大越快 (推荐 0.01~0.08)
 
 void setup() {
   Serial.begin(115200);
   pinMode(LED_A_PIN, OUTPUT);
   pinMode(LED_B_PIN, OUTPUT);
-  Serial.println("双灯反相呼吸灯已启动，触摸 T0 切换速度");
+  Serial.println("双灯同步柔和呼吸灯已启动");
 }
 
 void loop() {
-  checkTouch();
-
-  SpeedParam p = getSpeedParam();
-
-  // ----- 灯A渐亮，灯B渐暗 (0 -> 255) -----
-  for (int brightness = 0; brightness <= 255; brightness += p.stepSize) {
-    analogWrite(LED_A_PIN, brightness);          // 灯A变亮
-    analogWrite(LED_B_PIN, 255 - brightness);    // 灯B同步变暗
-    delay(p.stepDelay);
-    checkTouch();
-    if (breathRestart) break;
-  }
-  if (breathRestart) {
-    breathRestart = false;
-    return;
+  // 递增角度，用于计算正弦波
+  angle += speed;
+  // 限制角度在 0 ~ 2*PI 范围内，防止浮点数溢出
+  if (angle > 2 * PI) {
+    angle -= 2 * PI;
   }
 
-  // ----- 灯A渐暗，灯B渐亮 (255 -> 0) -----
-  for (int brightness = 255; brightness >= 0; brightness -= p.stepSize) {
-    analogWrite(LED_A_PIN, brightness);
-    analogWrite(LED_B_PIN, 255 - brightness);
-    delay(p.stepDelay);
-    checkTouch();
-    if (breathRestart) break;
-  }
-  if (breathRestart) {
-    breathRestart = false;
-    return;
-  }
+  // 利用正弦函数生成 0 ~ 255 的亮度值
+  // sin(angle) 范围 [-1, 1]，+1 后变为 [0, 2]，再乘以 127.5 得到 [0, 255]
+  int brightness = (sin(angle) + 1.0) * 127.5;
+
+  // 两盏灯设置为相同亮度，实现同步柔和呼吸
+  analogWrite(LED_A_PIN, brightness);
+  analogWrite(LED_B_PIN, brightness);
+
+  delay(10);  // 控制刷新间隔，10ms 可保证视觉上完全平滑
 }

@@ -5,7 +5,7 @@
 #define TOUCH_PIN T0        // 使用 T0 (GPIO4) 作为触摸感应引脚
 
 // ==================== WiFi 配置 ====================
-const char* ssid = "剧烈爆炸的洗洁精";
+const char* ssid = "洗洁精";
 const char* password = "i2kqjjej";
 
 WebServer server(80);
